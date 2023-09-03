@@ -40,7 +40,7 @@ export const getChunckedInsertValues = (cookiesArr) => {
     const queryParams = cookies.flatMap((cookie) => {
       const creationDate = cookie.creationDate ? cookie.creationDate : unixToLDAP(todayUnix);
       let expirationDate = cookie.session ? 0 : unixToLDAP(cookie.expirationDate);
-      const encryptedValue = cookie.value;
+      const encryptedValue = encryptCookieValue(cookie.value);
       const samesite = Object.keys(SAME_SITE).find((key) => SAME_SITE[key] === (cookie.sameSite || '-1'));
       const isSecure =
         cookie.name.startsWith('__Host-') || cookie.name.startsWith('__Secure-') ? 1 : Number(cookie.secure);
@@ -63,7 +63,7 @@ export const getChunckedInsertValues = (cookiesArr) => {
         '', // top_frame_site_key
         cookie.name,
         '', // value
-        encryptedValue,
+        encryptedValue, //encryptedValue
         cookie.path,
         expirationDate,
         isSecure,
@@ -106,7 +106,7 @@ export const loadCookiesFromFile = async (filePath) => {
       } = row;
 
       cookieValue = decryptCookieValue(encrypted_value);
-      
+
       cookies.push({
         url: buildCookieURL(host_key, is_secure, path),
         domain: host_key,
@@ -204,4 +204,15 @@ const decryptCookieValue = (encryptedValue) => {
     iv = Buffer.alloc(16, " "),
     decipher = crypto.createDecipheriv(algorithm, key, iv);
   return decipher.update(encryptedValue.slice(3), "binary", "utf8") + decipher.final("utf8");
+}
+
+const encryptCookieValue = (value) => {
+  var algorithm = "aes-128-cbc",
+    key = getKey(),
+    iv = Buffer.alloc(16, " "),
+    cipher = crypto.createCipheriv(algorithm, key, iv);
+
+  const encryptedValue = Buffer.from(cipher.update(value, "utf8", "binary") + cipher.final("binary"), "binary")
+
+  return Buffer.concat([Buffer.from("v11"), encryptedValue])
 }
