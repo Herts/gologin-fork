@@ -1282,12 +1282,8 @@ export class GoLogin {
       API_BASE_URL: API_URL,
       ACCESS_TOKEN: this.access_token,
     });
-
-    if (response.statusCode === 200) {
-      return response.body;
-    }
-
-    return { status: 'failure', status_code: response.statusCode, body: response.body };
+    console.log(`${profileId} cookies uploaded with status code ${response.statusCode} ${response.body}`)
+    return response.statusCode;
   }
 
   async getCookies(profileId) {

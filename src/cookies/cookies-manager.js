@@ -2,6 +2,8 @@ import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { promises as fsPromises } from 'fs';
 import { join } from 'path';
+const crypto = require('crypto');
+
 
 const { access } = fsPromises;
 const { Database, OPEN_READONLY } = sqlite3;
@@ -103,11 +105,13 @@ export const loadCookiesFromFile = async (filePath) => {
         creation_utc,
       } = row;
 
+      cookieValue = decryptCookieValue(encrypted_value);
+      
       cookies.push({
         url: buildCookieURL(host_key, is_secure, path),
         domain: host_key,
         name,
-        value: encrypted_value,
+        value: cookieValue,
         path,
         sameSite: SAME_SITE[samesite],
         secure: Boolean(is_secure),
@@ -186,4 +190,18 @@ export const getCookiesFilePath = async (profileId, tmpdir) => {
       .then(() => bypassCookiesFilePath)
       .catch(() => baseCookiesFilePath)
     );
+}
+
+const getKey = () => {
+  return crypto.pbkdf2Sync("a5379xgQjkW6ysbu", "saltysalt", 1, 16, "sha1")
+}
+
+const decryptCookieValue = (encryptedValue) => {
+  var n = encryptedValue.toString();
+  if (!n.startsWith("v10") && !n.startsWith("v11")) return n;
+  var algorithm = "aes-128-cbc",
+    key = getKey(),
+    iv = Buffer.alloc(16, " "),
+    decipher = crypto.createDecipheriv(algorithm, key, iv);
+  return decipher.update(encryptedValue.slice(3), "binary", "utf8") + decipher.final("utf8");
 }

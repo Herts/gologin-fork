@@ -9,9 +9,6 @@ import { fontsCollection } from '../utils/fonts.js';
 
 const { access, readFile, writeFile, mkdir, readdir, copyFile, rename } = _promises;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 const FONTS_URL = 'https://fonts.gologin.com/';
 const FONTS_DIR_NAME = 'fonts';
 
@@ -39,8 +36,9 @@ export const downloadCookies = ({ profileId, ACCESS_TOKEN, API_BASE_URL }) =>
     return { body: [] };
   });
 
-export const uploadCookies = ({ cookies = [], profileId, ACCESS_TOKEN, API_BASE_URL }) =>
-  requestretry.post(`${API_BASE_URL}/browser/${profileId}/cookies/?encrypted=true`, {
+export const uploadCookies = ({ cookies = [], profileId, ACCESS_TOKEN, API_BASE_URL }) =>{
+  console.log(JSON.stringify(cookies));
+  return requestretry.post(`${API_BASE_URL}/browser/${profileId}/cookies`, {
     headers: {
       Authorization: `Bearer ${ACCESS_TOKEN}`,
       'User-Agent': 'gologin-api',
@@ -54,6 +52,7 @@ export const uploadCookies = ({ cookies = [], profileId, ACCESS_TOKEN, API_BASE_
 
     return e;
   });
+}
 
 export const downloadFonts = async (fontsList = [], profilePath) => {
   if (!fontsList.length) {
@@ -119,7 +118,7 @@ export const copyFontsConfigFile = async (profilePath) => {
     return;
   }
 
-  const fileContent = await readFile(resolve(__dirname, '..', '..', 'fonts_config'), 'utf-8');
+  const fileContent = await readFile(resolve('..', '..', 'fonts_config'), 'utf-8');
   const result = fileContent.replace(/\$\$GOLOGIN_FONTS\$\$/g, join(profilePath, FONTS_DIR_NAME));
 
   const defaultFolderPath = join(profilePath, 'Default');
