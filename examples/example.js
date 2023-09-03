@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer-core';
 
-import GoLogin from './src/gologin.js';
+import GoLogin from '../src/gologin.js';
 
 const token = 'yU0token';
 const profile_id = 'yU0Pr0f1leiD';

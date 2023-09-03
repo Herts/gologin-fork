@@ -10,7 +10,7 @@ import requests from 'requestretry';
 import rimraf from 'rimraf';
 import ProxyAgent from 'simple-proxy-agent';
 
-import { fontsCollection } from '../fonts.js';
+import { fontsCollection } from './utils/fonts.js';
 import { getCurrentProfileBookmarks } from './bookmarks/utils.js';
 import { updateProfileBookmarks, updateProfileProxy, updateProfileResolution, updateProfileUserAgent } from './browser/browser-api.js';
 import BrowserChecker from './browser/browser-checker.js';

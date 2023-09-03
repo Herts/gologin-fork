@@ -5,7 +5,7 @@ import { join, resolve, sep, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import requestretry from 'requestretry';
 
-import { fontsCollection } from '../../fonts.js';
+import { fontsCollection } from '../utils/fonts.js';
 
 const { access, readFile, writeFile, mkdir, readdir, copyFile, rename } = _promises;
 
