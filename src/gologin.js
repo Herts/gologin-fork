@@ -181,10 +181,6 @@ export class GoLogin {
     return JSON.parse(profileResponse.body);
   }
 
-  async emptyProfile() {
-    return readFile(_resolve(__dirname, 'gologin_zeroprofile.b64')).then(res => res.toString());
-  }
-
   async getProfileS3(s3path) {
     if (!s3path) {
       throw new Error('s3path not found');
