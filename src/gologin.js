@@ -59,6 +59,7 @@ export class GoLogin {
       this.waitWebsocket = false;
     }
 
+    this.isCloudHeadless = options.isCloudHeadless || true;
     this.isNewCloudBrowser = true;
     if (options.isNewCloudBrowser === false) {
       this.isNewCloudBrowser = false;
@@ -72,7 +73,10 @@ export class GoLogin {
     this.remote_debugging_port = options.remote_debugging_port || 0;
     this.timezone = options.timezone;
     this.extensionPathsToInstall = [];
+    this.customArgs = options.args || [];
     this.restoreLastSession = options.restoreLastSession || false;
+    this.processSpawned = null;
+    this.processKillTimeout = 1 * 1000;
 
     if (options.tmpdir) {
       this.tmpdir = options.tmpdir;
@@ -95,6 +99,7 @@ export class GoLogin {
     this.profile_id = profile_id;
     this.cookiesFilePath = await getCookiesFilePath(profile_id, this.tmpdir);
     this.profile_zip_path = join(this.tmpdir, `gologin_${this.profile_id}.zip`);
+    this.bookmarksFilePath = join(this.tmpdir, `gologin_profile_${this.profile_id}`, 'Default', 'Bookmarks');
   }
 
   async getToken(username, password) {
@@ -740,10 +745,10 @@ export class GoLogin {
       }
 
       const proxyUrl = `${proxy.mode}://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`;
-      debug('getTimeZone start https://time.gologin.com/timezone', proxyUrl);
-      data = await requests.get('https://time.gologin.com/timezone', { proxy: proxyUrl, timeout: 20 * 1000, maxAttempts: 5 });
+      debug('getTimeZone start https://ipgeo.gologin.com', proxyUrl);
+      data = await requests.get('https://ipgeo.gologin.com', { proxy: proxyUrl, timeout: 20 * 1000, maxAttempts: 5 });
     } else {
-      data = await requests.get('https://time.gologin.com/timezone', { timeout: 20 * 1000, maxAttempts: 5 });
+      data = await requests.get('https://ipgeo.gologin.com', { timeout: 20 * 1000, maxAttempts: 5 });
     }
 
     debug('getTimeZone finish', data.body);
@@ -767,7 +772,7 @@ export class GoLogin {
     const agent = new ProxyAgent(proxy, { tunnel: true, timeout: 10000 });
 
     const checkData = await new Promise((resolve, reject) => {
-      _get('https://time.gologin.com/timezone', { agent }, (res) => {
+      _get('https://ipgeo.gologin.com', { agent }, (res) => {
         let resultResponse = '';
         res.on('data', (data) => resultResponse += data);
 
@@ -829,7 +834,7 @@ export class GoLogin {
   }
 
   async spawnBrowser() {
-    let { remote_debugging_port } = this;
+    let { remote_debugging_port, customArgs } = this;
     if (!remote_debugging_port) {
       remote_debugging_port = await this.getRandomPort();
     }
@@ -920,8 +925,11 @@ export class GoLogin {
         params.push('--restore-last-session');
       }
 
+      params.push(...new Set(customArgs));
+
       console.log(params);
       const child = execFile(ORBITA_BROWSER, params, { env });
+      this.processSpawned = child;
       // const child = spawn(ORBITA_BROWSER, params, { env, shell: true });
       child.stdout.on('data', (data) => debug(data.toString()));
       debug('SPAWN CMD', ORBITA_BROWSER, params.join(' '));
@@ -1005,12 +1013,36 @@ export class GoLogin {
     debug('browser killed');
   }
 
+  killBrowser() {
+    if (!this.processSpawned.pid) {
+      return;
+    }
+
+    try {
+      this.processSpawned.kill();
+      debug('browser killed');
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async killAndCommit(options, local = false) {
+    this.killBrowser();
+    await delay(this.processKillTimeout);
+    await this.stopAndCommit(options, local).catch(console.error);
+  }
+
   async sanitizeProfile() {
     const remove_dirs = [
       `${SEPARATOR}Default${SEPARATOR}Cache`,
-      `${SEPARATOR}Default${SEPARATOR}Service Worker${SEPARATOR}CacheStorage`,
+      `${SEPARATOR}Default${SEPARATOR}Service Worker`,
       `${SEPARATOR}Default${SEPARATOR}Code Cache`,
       `${SEPARATOR}Default${SEPARATOR}GPUCache`,
+      `${SEPARATOR}Default${SEPARATOR}Extensions`,
+      `${SEPARATOR}Default${SEPARATOR}IndexedDB`,
+      `${SEPARATOR}Default${SEPARATOR}GPUCache`,
+      `${SEPARATOR}Default${SEPARATOR}DawnCache`,
+      `${SEPARATOR}Default${SEPARATOR}fonts_config`,
       `${SEPARATOR}GrShaderCache`,
       `${SEPARATOR}ShaderCache`,
       `${SEPARATOR}biahpgbdmdkfgndcmfiipgcebobojjkp`,
@@ -1425,7 +1457,7 @@ export class GoLogin {
 
     const profileResponse = await requests.post(`${API_URL}/browser/${this.profile_id}/web`, {
       headers: { 'Authorization': `Bearer ${this.access_token}` },
-      json: { isNewCloudBrowser: this.isNewCloudBrowser },
+      json: { isNewCloudBrowser: this.isNewCloudBrowser, isHeadless: this.isCloudHeadless },
     });
 
     debug('profileResponse', profileResponse.statusCode, profileResponse.body);
